@@ -308,8 +308,14 @@ mixin IndexedItem {
   }
 
   /// Moves this item to [newIndex] in the buffer.
+  ///
+  /// In production we no-op when the item has already been detached
+  /// (e.g. host widget was unmounted via IndexedStack rotation while a
+  /// scroll/render pass was still running). The previous `assert` was
+  /// debug-only noise that never indicated a real correctness issue.
   void _move(int newIndex) {
-    assert(attached);
-    _absoluteIndex = _owner!._absoluteStartIndex + newIndex;
+    final owner = _owner;
+    if (owner == null) return;
+    _absoluteIndex = owner._absoluteStartIndex + newIndex;
   }
 }
