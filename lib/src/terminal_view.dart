@@ -406,23 +406,6 @@ class TerminalViewState extends State<TerminalView> {
       return KeyEventResult.ignored;
     }
 
-    // Defer printable text to the OS IME (TextInputClient).
-    //
-    // Without this, hardware key events for Korean / Japanese / Chinese
-    // jamo bypass the composition step — the user types "ㅎ" then "ㅏ"
-    // and the shell gets two separate codepoints instead of the
-    // composed syllable "하". By returning ignored when a character is
-    // present and no modifier (ctrl/cmd/alt) is held, the system's
-    // composition engine routes the keystrokes through CustomTextEdit
-    // and the syllable arrives as a single onInsert.
-    final character = event.character;
-    final modifierActive = HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed ||
-        HardwareKeyboard.instance.isAltPressed;
-    if (character != null && character.isNotEmpty && !modifierActive) {
-      return KeyEventResult.ignored;
-    }
-
     final key = keyToTerminalKey(event.logicalKey);
 
     if (key == null) {
