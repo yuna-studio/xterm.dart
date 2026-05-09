@@ -209,32 +209,55 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
   @override
   void updateEditingValue(TextEditingValue value) {
+    // Korean / Japanese / Chinese IMEs evolve a syllable inside the
+    // composing range (e.g. "ㅎ" → "하" → "한"). The previous version
+    // suppressed PTY output until composing collapsed, which meant the
+    // user typed an entire word into IME limbo and only saw the *last*
+    // syllable hit the shell — every previous syllable was lost.
+    //
+    // New rule: synchronise the shell with the editor text every update.
+    //   1. Find the longest common prefix between the previous committed
+    //      buffer and the new buffer.
+    //   2. Backspace whatever diverged on the right of the prev buffer.
+    //   3. Insert the new tail.
+    //   4. When composing collapses, reset the baseline so future deltas
+    //      compare against the freshly-committed text.
+    final prev = _currentEditingState;
     _currentEditingState = value;
 
-    // Get input after composing is done
-    if (!_currentEditingState.composing.isCollapsed) {
-      final text = _currentEditingState.text;
-      final composingText = _currentEditingState.composing.textInside(text);
-      widget.onComposing(composingText);
+    final newText = value.text;
+    final prevText = prev.text;
+
+    if (newText != prevText) {
+      var common = 0;
+      final minLen =
+          newText.length < prevText.length ? newText.length : prevText.length;
+      while (common < minLen && newText[common] == prevText[common]) {
+        common++;
+      }
+      // Erase the diverging tail of the previous buffer character-by-
+      // character so terminal apps (and the cell grid renderer) stay
+      // in sync with the IME's evolving composition.
+      for (var i = common; i < prevText.length; i++) {
+        widget.onDelete();
+      }
+      if (common < newText.length) {
+        widget.onInsert(newText.substring(common));
+      }
+    }
+
+    if (!value.composing.isCollapsed) {
+      widget.onComposing(value.composing.textInside(newText));
       return;
     }
 
     widget.onComposing(null);
 
-    if (_currentEditingState.text.length < _initEditingState.text.length) {
-      widget.onDelete();
-    } else {
-      final textDelta = _currentEditingState.text.substring(
-        _initEditingState.text.length,
-      );
-
-      widget.onInsert(textDelta);
-    }
-
-    // Reset editing state if composing is done
-    if (_currentEditingState.composing.isCollapsed &&
-        _currentEditingState.text != _initEditingState.text) {
-      _connection!.setEditingState(_initEditingState);
+    // Composition just finished — snap the editing state back to the
+    // empty baseline so the next composition starts from a clean slate.
+    if (newText != _initEditingState.text) {
+      _currentEditingState = _initEditingState.copyWith();
+      _connection?.setEditingState(_initEditingState);
     }
   }
 
