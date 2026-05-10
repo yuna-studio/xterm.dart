@@ -159,13 +159,23 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
     if (hasInputConnection) {
       _connection!.show();
     } else {
+      // Apple platforms (macOS / iOS / iPadOS): leave the IME features
+      // ON so the OS-level CJK composer (Korean / Japanese / Chinese)
+      // gets a normal composing cycle. With every flag forced off, the
+      // macOS Korean IME aggressively commits each jamo as a standalone
+      // character — Korean syllables ("하") split into their constituent
+      // jamos ("ㅎ" + "ㅏ") before they reach the PTY. Other platforms
+      // keep the original "everything off" config so we don't disturb
+      // their working autocomplete behaviour.
+      final isApple = defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.iOS;
       final config = TextInputConfiguration(
         inputType: widget.inputType,
         inputAction: widget.inputAction,
         keyboardAppearance: widget.keyboardAppearance,
-        autocorrect: false,
-        enableSuggestions: false,
-        enableIMEPersonalizedLearning: false,
+        autocorrect: isApple,
+        enableSuggestions: isApple,
+        enableIMEPersonalizedLearning: isApple,
       );
 
       _connection = TextInput.attach(this, config);
