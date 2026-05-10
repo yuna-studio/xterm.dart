@@ -48,6 +48,7 @@ class TerminalView extends StatefulWidget {
     this.readOnly = false,
     this.hardwareKeyboardOnly = false,
     this.simulateScroll = true,
+    this.onCharacterInput,
   });
 
   /// The underlying terminal that this widget renders.
@@ -140,6 +141,22 @@ class TerminalView extends StatefulWidget {
   /// keys to the application. This is standard behavior for most terminal
   /// emulators. True by default.
   final bool simulateScroll;
+
+  /// Optional intercept for the text-input path (`updateEditingValue` →
+  /// `onInsert`). When set, every committed character or short string the
+  /// IME hands us is offered to this callback first. Returning `true`
+  /// means "I consumed it — do NOT forward to the PTY"; returning `false`
+  /// (or leaving the callback null) keeps the original behaviour and the
+  /// text is written to the terminal as before.
+  ///
+  /// The hook exists so the embedder can run its own input composer in
+  /// front of the PTY — e.g. a Korean (Hangul) jamo composer on macOS,
+  /// where the platform IME hands us each jamo separately and the
+  /// terminal needs the assembled syllable instead. The hook only
+  /// intercepts the IME / text-input path; raw key events (Enter,
+  /// Backspace, Ctrl-C, …) still go through the keyboard handler
+  /// untouched.
+  final bool Function(String text)? onCharacterInput;
 
   @override
   State<TerminalView> createState() => TerminalViewState();
@@ -368,6 +385,20 @@ class TerminalViewState extends State<TerminalView> {
   }
 
   void _onInsert(String text) {
+    // External composer (e.g. Loupe's Hangul jamo composer on macOS) gets
+    // first dibs on the IME / text-input path. If it consumes the input
+    // it is responsible for whatever ends up on the PTY (typically the
+    // assembled syllable forwarded via `terminal.textInput` directly).
+    // Falling through means standard behaviour — try keyInput, fall back
+    // to textInput. Empty strings (rare) skip the hook so we never burn
+    // a no-op call.
+    if (text.isNotEmpty &&
+        widget.onCharacterInput != null &&
+        widget.onCharacterInput!(text)) {
+      _scrollToBottom();
+      return;
+    }
+
     final key = charToTerminalKey(text.trim());
 
     // On mobile platforms there is no guarantee that virtual keyboard will
