@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -368,6 +369,7 @@ class TerminalViewState extends State<TerminalView> {
   }
 
   void _onInsert(String text) {
+    debugPrint('[KIME-DBG] TV._onInsert text="$text" codes=${text.codeUnits}');
     final key = charToTerminalKey(text.trim());
 
     // On mobile platforms there is no guarantee that virtual keyboard will
@@ -387,6 +389,8 @@ class TerminalViewState extends State<TerminalView> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode focusNode, KeyEvent event) {
+    debugPrint('[KIME-DBG] TV._handleKeyEvent type=${event.runtimeType} '
+        'logical=${event.logicalKey.debugName} char=${event.character?.codeUnits}');
     final resultOverride = widget.onKeyEvent?.call(focusNode, event);
     if (resultOverride != null && resultOverride != KeyEventResult.ignored) {
       return resultOverride;
