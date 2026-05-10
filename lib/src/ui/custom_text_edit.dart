@@ -134,9 +134,6 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
   }
 
   KeyEventResult _onKeyEvent(FocusNode focusNode, KeyEvent event) {
-    debugPrint('[KIME-DBG] CTE._onKeyEvent type=${event.runtimeType} '
-        'logical=${event.logicalKey.debugName} char=${event.character?.codeUnits} '
-        'composing=${_currentEditingState.composing}');
     if (_currentEditingState.composing.isCollapsed) {
       return widget.onKeyEvent(focusNode, event);
     }
@@ -222,15 +219,12 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
   @override
   void updateEditingValue(TextEditingValue value) {
-    debugPrint('[KIME-DBG] CTE.updateEditingValue text=${value.text.codeUnits} '
-        'sel=${value.selection} composing=${value.composing}');
     _currentEditingState = value;
 
     // Get input after composing is done
     if (!_currentEditingState.composing.isCollapsed) {
       final text = _currentEditingState.text;
       final composingText = _currentEditingState.composing.textInside(text);
-      debugPrint('[KIME-DBG] CTE.updateEditingValue → onComposing("$composingText")');
       widget.onComposing(composingText);
       return;
     }
@@ -238,14 +232,12 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
     widget.onComposing(null);
 
     if (_currentEditingState.text.length < _initEditingState.text.length) {
-      debugPrint('[KIME-DBG] CTE.updateEditingValue → onDelete');
       widget.onDelete();
     } else {
       final textDelta = _currentEditingState.text.substring(
         _initEditingState.text.length,
       );
-      debugPrint('[KIME-DBG] CTE.updateEditingValue → onInsert("$textDelta" '
-          'codes=${textDelta.codeUnits})');
+
       widget.onInsert(textDelta);
     }
 
